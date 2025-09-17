@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import Layout from "@/Layouts/Layout";
 import route from "ziggy-js";
 import ReportLogo from "@/Components/ReportLogo";
@@ -8,6 +8,8 @@ import Transaction from "@/Interfaces/Transaction";
 import NoTableData from "@/Components/NoTableData";
 import moment from "moment";
 import Receipt from "@/Interfaces/Receipt";
+import { ArrowLeftIcon, DocumentDownloadIcon, PrinterIcon } from "@heroicons/react/solid";
+import { formatCurrency } from "@/utils/currency";
 
 interface Props {
     auth: any;
@@ -19,28 +21,243 @@ interface Props {
 }
 
 const ReceiptShow: React.FC<Props> = ({ auth, errors, income, receipt, transactionReceived, dateReceipt }) => {
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-    const mascaraDoc = (valor: string) => {
+    const mascaraDoc = useCallback((valor: string) => {
+        if (!valor) return '';
         if (valor.length > 11) {
             return valor.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/g, "\$1.\$2.\$3\/\$4\-\$5");
         } else {
             return valor.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/g, "\$1.\$2.\$3\-\$4");
         }
-    }
+    }, []);
+
+    const handleBack = useCallback(() => {
+        window.history.back();
+    }, []);
+
+    const handleGeneratePDF = useCallback(() => {
+        setIsGeneratingPDF(true);
+        
+        // Gerar PDF via backend
+        const pdfUrl = route('receipt.pdf', { id: income.id });
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = `recibo-${income.customer.name}-${moment().format('YYYY-MM-DD')}.pdf`;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        setTimeout(() => setIsGeneratingPDF(false), 2000);
+    }, [income.id, income.customer.name]);
+
+    // Memoizar dados formatados
+    const formattedData = useMemo(() => {
+        const received = transactionReceived || 0;
+        const total = parseFloat(income.receive.toString()) || 0;
+        const pending = total - received;
+        
+        return {
+            formattedReceive: formatCurrency(income.receive),
+            formattedReceived: formatCurrency(received.toString()),
+            formattedPending: formatCurrency(pending.toString()),
+            formattedCpfCnpj: mascaraDoc(income.customer.cpfcnpj || ''),
+            formattedDate: moment().format("DD/MM/YYYY"),
+            formattedDueDate: moment(income.due_date).format("DD/MM/YYYY"),
+        };
+    }, [income, transactionReceived, mascaraDoc]);
+
+    // Memoizar transações formatadas
+    const formattedTransactions = useMemo(() => {
+        return (income.transactions || []).map(transaction => ({
+            ...transaction,
+            formattedReceived: formatCurrency(transaction.received),
+        }));
+    }, [income.transactions]);
 
     return (
         <Layout
             auth={auth}
             errors={errors}
-            title="Exibir Recibo"
-            button={true}
-            name="Voltar"
-            href={route("income.show", { id: income.id })}
+            title="Recibo de Pagamento"
+            button={false}
         >
             <div className="max-w-full mx-auto sm:px-6 lg:px-4">
+                {/* Header com Botões de Ação */}
+                <div className="bg-white border-b border-gray-200 px-6 py-4 mb-6">
+                    <div className="flex items-center justify-between">
+                        {/* Breadcrumb */}
+                        <div className="flex items-center space-x-2 text-sm text-gray-500">
+                            <button
+                                onClick={handleBack}
+                                className="flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                                <ArrowLeftIcon className="w-4 h-4 mr-1" />
+                                Voltar
+                            </button>
+                            <span>/</span>
+                            <span className="text-gray-900 font-medium">Recibo de Pagamento</span>
+                        </div>
+
+                        {/* Botões de Ação */}
+                        <div className="flex items-center space-x-3">
+                            <button
+                                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                onClick={() => {
+                                    const receiptContent = document.getElementById('receipt-content');
+                                    if (receiptContent) {
+                                        const printWindow = window.open('', '_blank');
+                                        if (printWindow) {
+                                            printWindow.document.write(`
+                                                <!DOCTYPE html>
+                                                <html>
+                                                <head>
+                                                    <title>Recibo - ${income.customer.name}</title>
+                                                    <style>
+                                                        @page {
+                                                            size: A4;
+                                                            margin: 20mm;
+                                                        }
+                                                        body {
+                                                            font-family: Arial, sans-serif;
+                                                            font-size: 12px;
+                                                            line-height: 1.4;
+                                                            color: #000;
+                                                            margin: 0;
+                                                            padding: 0;
+                                                        }
+                                                        .receipt-container {
+                                                            max-width: 100%;
+                                                            margin: 0 auto;
+                                                        }
+                                                        .header {
+                                                            display: flex;
+                                                            justify-content: space-between;
+                                                            margin-bottom: 20px;
+                                                        }
+                                                        .company-info {
+                                                            text-align: right;
+                                                        }
+                                                        .title {
+                                                            font-size: 18px;
+                                                            font-weight: bold;
+                                                            text-transform: uppercase;
+                                                            margin-bottom: 10px;
+                                                        }
+                                                        .subtitle {
+                                                            font-size: 14px;
+                                                            font-weight: bold;
+                                                            text-transform: uppercase;
+                                                            margin-bottom: 5px;
+                                                        }
+                                                        .text {
+                                                            font-size: 12px;
+                                                            margin-bottom: 3px;
+                                                        }
+                                                        .text-bold {
+                                                            font-weight: bold;
+                                                        }
+                                                        .text-uppercase {
+                                                            text-transform: uppercase;
+                                                        }
+                                                        .divider {
+                                                            border-top: 1px solid #000;
+                                                            margin: 15px 0;
+                                                        }
+                                                        .customer-info {
+                                                            margin: 15px 0;
+                                                        }
+                                                        .services-table {
+                                                            width: 100%;
+                                                            border-collapse: collapse;
+                                                            margin: 15px 0;
+                                                        }
+                                                        .services-table th,
+                                                        .services-table td {
+                                                            border: 1px solid #000;
+                                                            padding: 8px;
+                                                            text-align: left;
+                                                        }
+                                                        .services-table th {
+                                                            background-color: #f5f5f5;
+                                                            font-weight: bold;
+                                                        }
+                                                        .services-table .text-right {
+                                                            text-align: right;
+                                                        }
+                                                        .totals {
+                                                            margin-top: 20px;
+                                                            text-align: right;
+                                                        }
+                                                        .totals-row {
+                                                            display: flex;
+                                                            justify-content: space-between;
+                                                            margin-bottom: 5px;
+                                                            padding-bottom: 5px;
+                                                            border-bottom: 1px solid #ccc;
+                                                        }
+                                                        .totals-row.final {
+                                                            border-bottom: 2px solid #000;
+                                                            font-weight: bold;
+                                                            font-size: 14px;
+                                                        }
+                                                        .signatures {
+                                                            display: flex;
+                                                            justify-content: space-between;
+                                                            margin-top: 40px;
+                                                        }
+                                                        .signature-box {
+                                                            width: 45%;
+                                                            text-align: center;
+                                                        }
+                                                        .signature-line {
+                                                            border-bottom: 2px solid #000;
+                                                            margin-bottom: 10px;
+                                                            height: 40px;
+                                                        }
+                                                        .date {
+                                                            text-align: center;
+                                                            margin: 20px 0;
+                                                            font-weight: bold;
+                                                        }
+                                                    </style>
+                                                </head>
+                                                <body>
+                                                    <div class="receipt-container">
+                                                        ${receiptContent.innerHTML}
+                                                    </div>
+                                                </body>
+                                                </html>
+                                            `);
+                                            printWindow.document.close();
+                                            printWindow.print();
+                                            printWindow.close();
+                                        }
+                                    }
+                                }}
+                                title="Imprimir recibo"
+                            >
+                                <PrinterIcon className="w-4 h-4 mr-2" />
+                                Imprimir
+                            </button>
+                            
+                            <button
+                                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                onClick={handleGeneratePDF}
+                                disabled={isGeneratingPDF}
+                                title="Gerar PDF do recibo"
+                            >
+                                <DocumentDownloadIcon className="w-4 h-4 mr-2" />
+                                {isGeneratingPDF ? 'Gerando...' : 'Gerar PDF'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-12 gap-6">
                     <div className="col-span-full p-6 xl:col-span-12 bg-white">
-                        <div className="px-4 mx-auto shadow-md">
+                        <div id="receipt-content" className="px-4 mx-auto shadow-md">
                             {/* Começo de linha */}
                             <div className="flex justify-between">
                                 <div className="relative w-1/5 bg-center px-1 py-1">
@@ -100,7 +317,7 @@ const ReceiptShow: React.FC<Props> = ({ auth, errors, income, receipt, transacti
                                         <p className="font-extrabold text-md">Cliente: {income.customer.name}</p>
                                     </div>
                                     <div className="mb-2 mt-2">
-                                        <p className="font-medium text-md">CPF/CNPJ: {mascaraDoc(income.customer.cpfcnpj)}</p>
+                                        <p className="font-medium text-md">CPF/CNPJ: {formattedData.formattedCpfCnpj}</p>
                                     </div>
                                     <div className="mb-2 mt-2">
                                         <div className="flex justify-between mb-2">
@@ -161,11 +378,10 @@ const ReceiptShow: React.FC<Props> = ({ auth, errors, income, receipt, transacti
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {income.transactions.length >
-                                        0 ? (
-                                        income.transactions.map(
+                                    {formattedTransactions.length > 0 ? (
+                                        formattedTransactions.map(
                                             (
-                                                transaction: Transaction,
+                                                transaction,
                                                 index
                                             ) => {
                                                 return (
@@ -174,13 +390,13 @@ const ReceiptShow: React.FC<Props> = ({ auth, errors, income, receipt, transacti
                                                             <div className="text-left uppercase font-medium">{income.category.title}</div>
                                                         </td>
                                                         <td className="p-2 w-36">
-                                                            <div className="text-right">R$ {transaction.received}</div>
+                                                            <div className="text-right">{transaction.formattedReceived}</div>
                                                         </td>
                                                         <td className="p-2 w-36">
                                                             <div className="text-right">1</div>
                                                         </td>
                                                         <td className="p-2 w-36">
-                                                            <div className="text-right">R$ {transaction.received}</div>
+                                                            <div className="text-right">{transaction.formattedReceived}</div>
                                                         </td>
                                                     </tr>
 
@@ -200,16 +416,15 @@ const ReceiptShow: React.FC<Props> = ({ auth, errors, income, receipt, transacti
                                     </div>
                                     <div className="flex justify-between border-b-2 border-gray-200 w-full mt-4">
                                         <div className="font-semibold text-sm">Serviços</div>
-                                        <div className="font-semibold text-sm">R$ {income.receive}</div>
+                                        <div className="font-semibold text-sm">{formattedData.formattedReceive}</div>
                                     </div>
                                     <div className="flex justify-between border-b-2 border-gray-200 w-full mt-4">
                                         <div className="font-extrabold text-sm">Valor Pago</div>
-                                        <div className="font-extrabold text-sm">R$ {transactionReceived}</div>
+                                        <div className="font-extrabold text-sm">{formattedData.formattedReceived}</div>
                                     </div>
                                     <div className="flex justify-between border-b-2 border-black w-full mt-4">
                                         <div className="font-extrabold text-md">Valor Pendente</div>
-                                        <div className="font-extrabold text-md">R$ {income.receive -
-                                            transactionReceived}</div>
+                                        <div className="font-extrabold text-md">{formattedData.formattedPending}</div>
                                     </div>
                                 </div>
                             </div>
@@ -223,7 +438,7 @@ const ReceiptShow: React.FC<Props> = ({ auth, errors, income, receipt, transacti
                                 </div>
                             </div>
                             <div className="flex justify-center my-6">
-                                <p className="font-extrabold text-sm">Porto Velho, {moment().format("DD/MM/YYYY")}</p>
+                                <p className="font-extrabold text-sm">Porto Velho, {formattedData.formattedDate}</p>
                             </div>
                             <div className="flex justify-between my-8 mt-10">
                                 <div className="flex justify-center w-1/2">

@@ -11,11 +11,11 @@ export default function NavLink({ href, active, children }: Props) {
     return (
         <InertiaLink
             href={href}
-            className={
+            className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
                 active
-                    ? "flex items-center mt-1 py-2 px-6 text-sm bg-gray-700 bg-opacity-25 text-gray-100"
-                    : "flex items-center mt-1 py-2 px-6 text-sm text-gray-500 hover:bg-gray-700 hover:bg-opacity-25 hover:text-gray-100"
-            }
+                    ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
+            }`}
         >
             {children}
         </InertiaLink>

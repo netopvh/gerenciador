@@ -105,4 +105,20 @@ class Expense extends Model
         return $builder;
     }
 
+    public function scopePeriod(Builder $builder, $startDate, $endDate)
+    {
+        if (!is_null($startDate) && !is_null($endDate)) {
+            $builder->whereBetween('due_date', [
+                Carbon::createFromFormat('Y-m-d', $startDate)->startOfDay(),
+                Carbon::createFromFormat('Y-m-d', $endDate)->endOfDay(),
+            ]);
+        } elseif (!is_null($startDate)) {
+            $builder->where('due_date', '>=', Carbon::createFromFormat('Y-m-d', $startDate)->startOfDay());
+        } elseif (!is_null($endDate)) {
+            $builder->where('due_date', '<=', Carbon::createFromFormat('Y-m-d', $endDate)->endOfDay());
+        }
+
+        return $builder;
+    }
+
 }

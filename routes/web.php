@@ -90,6 +90,7 @@ Route::middleware(['auth', 'verified'])->group(function(){
         Route::get('/create', [ReceiptController::class, 'create'])->name('create');
         Route::post('/create', [ReceiptController::class, 'store'])->name('store');
         Route::post('/show/{id}/{type}', [ReceiptController::class, 'show'])->name('show');
+        Route::get('/pdf/{id}', [ReceiptController::class, 'pdf'])->name('pdf');
     });
 
     Route::prefix('services')->group(function () {

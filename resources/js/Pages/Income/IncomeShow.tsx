@@ -4,17 +4,20 @@ import Income from "@/Interfaces/Income";
 import SelectOption from "@/Interfaces/SelectOption";
 import Transaction from "@/Interfaces/Transaction";
 import Layout from "@/Layouts/Layout";
-import { XCircleIcon } from "@heroicons/react/solid";
+import { XCircleIcon, PencilIcon, DownloadIcon, DocumentTextIcon, TrashIcon, ArrowLeftIcon } from "@heroicons/react/solid";
 import { Inertia } from "@inertiajs/inertia";
 import moment from "moment";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import route from "ziggy-js";
 import FormReceive from "./Modal/FormReceive";
+import { formatCurrency } from "@/utils/currency";
 
 type parameters = {
     month?: string;
     term?: string;
     list?: string;
+    start_date?: string;
+    end_date?: string;
 };
 
 interface Props {
@@ -54,11 +57,14 @@ const IncomeShow: React.FC<Props> = ({
     const [values, setValues] = useState(defaultValueState);
     const [receiptValues, setReceiptValues] = useState(receiptValueState);
     const [modalOpen, setModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const [query, setQuery] = useState({
-        month: queryParams.month,
-        term: queryParams.term,
-        list: queryParams.list
+        month: queryParams.month || "",
+        term: queryParams.term || "",
+        list: queryParams.list || "",
+        start_date: queryParams.start_date || "",
+        end_date: queryParams.end_date || "",
     });
 
     useEffect(() => {
@@ -68,51 +74,56 @@ const IncomeShow: React.FC<Props> = ({
         }
     }, [success]);
 
-    const handleSave = () => {
-        Inertia.post(route("transaction.store"), values);
-    };
+    const handleSave = useCallback(() => {
+        setIsLoading(true);
+        Inertia.post(route("transaction.store"), values, {
+            onFinish: () => setIsLoading(false),
+        });
+    }, [values]);
 
-    const handleBack = () => {
-
-        let params: parameters = query;
-
-        if (params.month === "") {
-            delete params.month;
-        }
-        if (params.term === "") {
-            delete params.term;
-        }
-        if (params.list === "") {
-            delete params.list;
-        }
+    const handleBack = useCallback(() => {
+        let params: parameters = { ...query };
+        
+        // Limpar parâmetros vazios
+        Object.keys(params).forEach(key => {
+            if (params[key as keyof parameters] === "") {
+                delete params[key as keyof parameters];
+            }
+        });
 
         Inertia.get(route('income.index', params));
-    }
+    }, [query]);
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         setValues(defaultValueState);
         setModalOpen(false);
-    };
+    }, []);
 
-    const handleEdit = () => {
+    const handleEdit = useCallback(() => {
         Inertia.get(route("income.edit", { id: income.id }));
-    };
+    }, [income.id]);
 
-    const handleReceipt = () => {
+    const handleReceipt = useCallback(() => {
         Inertia.post(route("receipt.show", { id: income.id, type: 'income' }), receiptValues);
-    };
+    }, [income.id, receiptValues]);
 
-    const handleTransactionRemove = (transaction: Transaction) => {
+    const handleTransactionRemove = useCallback((transaction: Transaction) => {
         if (!confirm("Deseja realmente excluir o registro?")) return;
-        Inertia.delete(route("transaction.destroy", { id: transaction.id }));
-    };
+        setIsLoading(true);
+        Inertia.delete(route("transaction.destroy", { id: transaction.id }), {
+            onFinish: () => setIsLoading(false),
+        });
+    }, []);
 
-    const handleDelete = () => {
+    const handleDelete = useCallback(() => {
         if (!confirm("Deseja realmente excluir o registro?")) return;
-        Inertia.delete(route("income.destroy", { id: income.id }));
-    };
+        setIsLoading(true);
+        Inertia.delete(route("income.destroy", { id: income.id }), {
+            onFinish: () => setIsLoading(false),
+        });
+    }, [income.id]);
 
-    const handleModalChange = (
+    const handleModalChange = useCallback((
         event:
             | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
             | SelectOption
@@ -128,7 +139,42 @@ const IncomeShow: React.FC<Props> = ({
                 [event.target.name]: event.target.value,
             });
         }
-    };
+    }, [values]);
+
+    // Memoizar dados formatados e cálculos
+    const formattedData = useMemo(() => {
+        const received = transactionReceived || 0;
+        const total = parseFloat(income.receive.toString()) || 0;
+        const pending = total - received;
+        
+        return {
+            formattedReceive: formatCurrency(income.receive),
+            formattedReceived: formatCurrency(received.toString()),
+            formattedPending: formatCurrency(pending.toString()),
+            statusText: income.transactions.length === 0 
+                ? "EM ABERTO" 
+                : income.status === "T" 
+                    ? "PAGO TOTAL" 
+                    : "PAGO PARCIAL",
+            statusColor: income.transactions.length === 0 
+                ? "text-red-600" 
+                : income.status === "T" 
+                    ? "text-green-600" 
+                    : "text-yellow-600",
+            isPaid: income.status === "T",
+            isPartial: income.status === "P",
+            isOpen: income.transactions.length === 0,
+        };
+    }, [income, transactionReceived]);
+
+    // Memoizar transações formatadas
+    const formattedTransactions = useMemo(() => {
+        return income.transactions.map(transaction => ({
+            ...transaction,
+            formattedReceived: formatCurrency(transaction.received),
+            formattedDate: moment(transaction.date_payment).format("DD/MM/YYYY")
+        }));
+    }, [income.transactions]);
 
     return (
         <Layout
@@ -153,255 +199,267 @@ const IncomeShow: React.FC<Props> = ({
             <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div className="grid grid-cols-12 gap-6">
                     <div className="col-span-full xl:col-span-12 bg-white shadow-lg rounded-sm border border-gray-200">
-                        <div className="rounded-t bg-white mb-0 px-6 py-6">
-                            <div className="flex items-center justify-start mb-4">
+                        {/* Header com Breadcrumb e Ações */}
+                        <div className="bg-white border-b border-gray-200 px-6 py-4">
+                            <div className="flex items-center justify-between">
+                                {/* Breadcrumb */}
+                                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                                    <button
+                                        onClick={handleBack}
+                                        className="flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                                    >
+                                        <ArrowLeftIcon className="w-4 h-4 mr-1" />
+                                        Contas a Receber
+                                    </button>
+                                    <span>/</span>
+                                    <span className="text-gray-900 font-medium">Detalhes</span>
+                                </div>
+
+                                {/* Status Badge */}
+                                <div className="flex items-center space-x-2">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                        formattedData.isPaid 
+                                            ? 'bg-green-100 text-green-800' 
+                                            : formattedData.isPartial 
+                                                ? 'bg-yellow-100 text-yellow-800'
+                                                : 'bg-red-100 text-red-800'
+                                    }`}>
+                                        {formattedData.statusText}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Botões de Ação */}
+                        <div className="bg-white px-6 py-4 border-b border-gray-200">
+                            <div className="flex items-center space-x-3">
                                 <button
-                                    className={`bg-blue-500 text-white hover:bg-blue-700 hover:text-white active:bg-purple-700 font-bold uppercase text-xs px-4 py-2 rounded-l outline-none focus:outline-none mb-1 ease-linear transition-all duration-150`}
+                                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     type="button"
                                     onClick={handleEdit}
+                                    disabled={isLoading}
                                 >
+                                    <PencilIcon className="w-4 h-4 mr-2" />
                                     Editar
                                 </button>
+                                
                                 <button
-                                    className={`bg-green-500 text-white hover:bg-green-700 hover:text-white active:bg-purple-700 font-bold uppercase text-xs px-4 py-2 outline-none focus:outline-none mb-1 ease-linear transition-all duration-150`}
+                                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     type="button"
                                     onClick={() => setModalOpen(true)}
+                                    disabled={isLoading || formattedData.isPaid}
                                 >
+                                    <DownloadIcon className="w-4 h-4 mr-2" />
                                     Baixar
                                 </button>
-                                {income.status == "T" && (
+                                
+                                {formattedData.isPaid && (
                                     <button
-                                        className={`bg-indigo-500 text-white hover:bg-indigo-700 hover:text-white active:bg-purple-700 font-bold uppercase text-xs px-4 py-2 outline-none focus:outline-none mb-1 ease-linear transition-all duration-150`}
+                                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                         type="button"
                                         onClick={handleReceipt}
+                                        disabled={isLoading}
                                     >
+                                        <DocumentTextIcon className="w-4 h-4 mr-2" />
                                         Recibo
                                     </button>
                                 )}
+                                
                                 <button
-                                    className={`bg-red-500 text-white hover:bg-red-700 hover:text-white active:bg-purple-700 font-bold uppercase text-xs px-4 py-2 rounded-r outline-none focus:outline-none mb-1 ease-linear transition-all duration-150`}
+                                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     type="button"
                                     onClick={handleDelete}
+                                    disabled={isLoading}
                                 >
+                                    <TrashIcon className="w-4 h-4 mr-2" />
                                     Remover
                                 </button>
                             </div>
                         </div>
-                        {income.status == "T" && !income.receipt && (
-                            <div className="flex-auto px-4 lg:px-10 py-4 pt-0">
-                                <h6 className="text-blueGray-400 text-sm mt-3 mb-6 font-bold uppercase">
+                        {/* Seção de Recibo */}
+                        {formattedData.isPaid && !income.receipt && (
+                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                                <h6 className="text-gray-700 text-sm font-semibold mb-4">
                                     Informações do Recibo
                                 </h6>
-                                <div className="flex flex-wrap">
-                                    <div className="w-full px-4">
-                                        <div className="relative w-full mb-3">
+                                <div className="max-w-2xl">
                                             <Label
                                                 forInput="observations"
-                                                value="Informações básicas"
+                                        value="Observações do Recibo"
                                                 className="mb-2"
                                             />
-                                            <textarea name="observations" value={receiptValues.observations} onChange={(e) => {
+                                    <textarea 
+                                        name="observations" 
+                                        value={receiptValues.observations} 
+                                        onChange={(e) => {
                                                 setReceiptValues({
                                                     ...receiptValues,
                                                     observations: e.target.value,
                                                 });
-                                            }} className="w-full border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm "></textarea>
-                                        </div>
-                                    </div>
+                                        }} 
+                                        className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                                        placeholder="Digite observações para o recibo..."
+                                    />
                                 </div>
                             </div>
                         )}
-                        <div className="flex-auto px-4 lg:px-10 py-10 pt-0">
-                            <h6 className="text-blueGray-400 text-sm mt-3 mb-6 font-bold uppercase">
+                        {/* Informações do Lançamento */}
+                        <div className="px-6 py-6">
+                            <h6 className="text-gray-700 text-lg font-semibold mb-6">
                                 Informações do Lançamento
                             </h6>
-                            <div className="flex flex-wrap">
-                                <div className="w-full lg:w-1/5 px-4">
-                                    <div className="relative w-full mb-3">
+                            
+                            {/* Grid de Informações */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                                <div className="bg-gray-50 p-4 rounded-lg">
                                         <Label
-                                            forInput="Cliente"
+                                        forInput="codigo"
                                             value="Código do Cliente"
-                                            className="mb-2"
+                                        className="mb-2 text-sm font-medium text-gray-600"
                                         />
-                                        <p>{income.customer.cod}</p>
-                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900">{income.customer.cod}</p>
                                 </div>
-                                <div className="w-full lg:w-2/5 px-4">
-                                    <div className="relative w-full mb-3">
+                                
+                                <div className="bg-gray-50 p-4 rounded-lg">
                                         <Label
-                                            forInput="Cliente"
+                                        forInput="cliente"
                                             value="Nome do Cliente"
-                                            className="mb-2"
+                                        className="mb-2 text-sm font-medium text-gray-600"
                                         />
-                                        <p>{income.customer.name}</p>
-                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900">{income.customer.name}</p>
                                 </div>
-                                <div className="w-full lg:w-1/5 px-4">
-                                    <div className="relative w-full mb-3">
+                                
+                                <div className="bg-gray-50 p-4 rounded-lg">
                                         <Label
-                                            forInput="Cliente"
-                                            value="Vecimento"
-                                            className="mb-2"
-                                        />
-                                        <p>
-                                            {moment(income.due_date).format(
-                                                "DD/MM/YYYY"
-                                            )}
-                                        </p>
-                                    </div>
+                                        forInput="vencimento"
+                                        value="Data de Vencimento"
+                                        className="mb-2 text-sm font-medium text-gray-600"
+                                    />
+                                    <p className="text-lg font-semibold text-gray-900">
+                                        {moment(income.due_date).format("DD/MM/YYYY")}
+                                    </p>
                                 </div>
-                                <div className="w-full lg:w-1/5 px-4">
-                                    <div className="relative w-full mb-3">
+                                
+                                <div className="bg-gray-50 p-4 rounded-lg">
                                         <Label
-                                            forInput="Cliente"
+                                        forInput="categoria"
                                             value="Centro de Custo"
-                                            className="mb-2"
+                                        className="mb-2 text-sm font-medium text-gray-600"
                                         />
-                                        <p>{income.category.title}</p>
-                                    </div>
+                                    <p className="text-lg font-semibold text-gray-900">{income.category.title}</p>
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap">
-                                <div className="w-full lg:w-1/5 px-4">
-                                    <div className="relative w-full mb-3">
+                            {/* Valores Financeiros */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
                                         <Label
-                                            forInput="Cliente"
+                                        forInput="valor"
                                             value="Valor a Receber"
-                                            className="mb-2"
+                                        className="mb-2 text-sm font-medium text-blue-600"
                                         />
-                                        <p>R$ {income.receive}</p>
-                                    </div>
+                                    <p className="text-2xl font-bold text-blue-900">{formattedData.formattedReceive}</p>
                                 </div>
-                                <div className="w-full lg:w-1/5 px-4">
-                                    <div className="relative w-full mb-3">
+                                
+                                <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
                                         <Label
-                                            forInput="Cliente"
-                                            value="Status"
-                                            className="mb-2"
-                                        />
-                                        <p>
-                                            {income.transactions.length == 0
-                                                ? "EM ABERTO"
-                                                : income.status == "T"
-                                                    ? "PAGO TOTAL"
-                                                    : "PAGO PARCIAL"}
-                                        </p>
-                                    </div>
+                                        forInput="recebido"
+                                        value="Valor Recebido"
+                                        className="mb-2 text-sm font-medium text-green-600"
+                                    />
+                                    <p className="text-2xl font-bold text-green-900">{formattedData.formattedReceived}</p>
                                 </div>
-                                <div className="w-full lg:w-1/5 px-4">
-                                    <div className="relative w-full mb-3">
+                                
+                                <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-500">
                                         <Label
                                             forInput="pendente"
                                             value="Valor Pendente"
-                                            className="mb-2"
-                                        />
-                                        <p>
-                                            R${" "}
-                                            {income.receive -
-                                                transactionReceived}
-                                        </p>
-                                    </div>
+                                        className="mb-2 text-sm font-medium text-red-600"
+                                    />
+                                    <p className="text-2xl font-bold text-red-900">{formattedData.formattedPending}</p>
                                 </div>
                             </div>
-                            <div className="flex flex-wrap mt-4">
-                                <div className="w-full lg:w-full border border-gray-300 shadow-sm">
+                        </div>
+                        {/* Tabela de Transações */}
+                        <div className="px-6 py-6 border-t border-gray-200">
+                            <h6 className="text-gray-700 text-lg font-semibold mb-4">
+                                Histórico de Pagamentos
+                            </h6>
+                            
+                            <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                                     <div className="overflow-x-auto">
-                                        <table className="table-auto w-full">
-                                            <thead className="text-xs font-semibold uppercase text-gray-400 bg-gray-50">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
                                                 <tr>
-                                                    <th className="p-2 whitespace-nowrap">
-                                                        <div className="font-semibold text-left">
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Data do Pagamento
-                                                        </div>
                                                     </th>
-                                                    <th className="p-2 whitespace-nowrap">
-                                                        <div className="font-semibold text-left">
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Valor
-                                                        </div>
                                                     </th>
-                                                    <th className="p-2 whitespace-nowrap">
-                                                        <div className="font-semibold text-left">
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Forma de Pagamento
-                                                        </div>
                                                     </th>
-                                                    <th className="p-2 whitespace-nowrap">
-                                                        <div className="font-semibold text-left">
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Observação
-                                                        </div>
                                                     </th>
-                                                    <th className="p-2 whitespace-nowrap">
-                                                        <div className="font-semibold text-left">
-                                                            Ação
-                                                        </div>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Ações
                                                     </th>
                                                 </tr>
                                             </thead>
-                                            <tbody>
-                                                {income.transactions.length >
-                                                    0 ? (
-                                                    income.transactions.map(
-                                                        (
-                                                            transaction: Transaction,
-                                                            index
-                                                        ) => {
-                                                            return (
-                                                                <tr key={index}>
-                                                                    <td className="p-2 whitespace-nowrap">
-                                                                        <div className="text-left font-bold text-gray-800">
-                                                                            {moment(
-                                                                                transaction.date_payment
-                                                                            ).format(
-                                                                                "DD/MM/YYYY"
-                                                                            )}
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {formattedTransactions.length > 0 ? (
+                                                formattedTransactions.map((transaction, index) => (
+                                                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="text-sm font-medium text-gray-900">
+                                                                {transaction.formattedDate}
                                                                         </div>
                                                                     </td>
-                                                                    <td className="p-2 whitespace-nowrap">
-                                                                        <div className="text-left font-medium text-gray-800">
-                                                                            {"R$ " +
-                                                                                transaction.received}
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="text-sm font-semibold text-green-600">
+                                                                {transaction.formattedReceived}
                                                                         </div>
                                                                     </td>
-                                                                    <td className="p-2 whitespace-nowrap">
-                                                                        <div className="text-left font-medium text-gray-800">
-                                                                            {
-                                                                                transaction
-                                                                                    .payment_method
-                                                                                    .name
-                                                                            }
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="text-sm text-gray-900">
+                                                                {transaction.payment_method.name}
                                                                         </div>
                                                                     </td>
-                                                                    <td className="p-2 whitespace-nowrap">
-                                                                        <div className="text-left font-medium text-gray-800">
-                                                                            {
-                                                                                transaction.obs
-                                                                            }
+                                                        <td className="px-6 py-4">
+                                                            <div className="text-sm text-gray-900 max-w-xs truncate">
+                                                                {transaction.obs || '-'}
                                                                         </div>
                                                                     </td>
-                                                                    <td className="p-2 whitespace-nowrap">
-                                                                        <div className="text-left font-medium text-gray-800">
+                                                        <td className="px-6 py-4 whitespace-nowrap">
                                                                             <button
-                                                                                className="p-1 border border-red-500 bg-red-500 rounded-md"
-                                                                                onClick={() =>
-                                                                                    handleTransactionRemove(
-                                                                                        transaction
-                                                                                    )
-                                                                                }
-                                                                            >
-                                                                                <XCircleIcon className="h-3 w-3 text-white" />
+                                                                className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                                                onClick={() => handleTransactionRemove(transaction)}
+                                                                disabled={isLoading}
+                                                                title="Remover pagamento"
+                                                            >
+                                                                <XCircleIcon className="h-4 w-4 mr-1" />
+                                                                Remover
                                                                             </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                                        <div className="text-gray-500">
+                                                            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            </svg>
+                                                            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum pagamento registrado</h3>
+                                                            <p className="mt-1 text-sm text-gray-500">Esta conta ainda não possui pagamentos.</p>
                                                                         </div>
                                                                     </td>
                                                                 </tr>
-                                                            );
-                                                        }
-                                                    )
-                                                ) : (
-                                                    <NoTableData colSpan={4} />
                                                 )}
                                             </tbody>
                                         </table>
-                                    </div>
                                 </div>
                             </div>
                         </div>

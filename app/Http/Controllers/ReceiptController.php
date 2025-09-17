@@ -9,6 +9,7 @@ use App\Models\Receipt;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReceiptController extends Controller
 {
@@ -88,6 +89,45 @@ class ReceiptController extends Controller
         return;
     }
 
+    public function pdf($id)
+    {
+        $income = Income::with(['customer','transactions.payment_method','category'])->findOrFail($id);
+        $totalTransaction = Transaction::selectRaw('SUM(received) as total')->where('income_id', $id)->get()->first()->total ?? 0;
+        $dateReceipt = Income::selectRaw('DATE_FORMAT(due_date, "%d %M %Y") as label')
+                                    ->where('id', $id)
+                                    ->get()->first(); 
+        
+        $receipt = Receipt::where('income_id', $income->id)->get()->first();
+        if(is_null($receipt)){
+            $receipt = Receipt::create([
+                'income_id' => $income->id,
+                'observations' => ''
+            ]);
+        }
+
+        $data = [
+            'income' => $income,
+            'transactionReceived' => $totalTransaction,
+            'receipt' => $receipt,
+            'dateReceipt' => date_extenso($dateReceipt->label ?? ''),
+            'formattedData' => [
+                'formattedReceive' => 'R$ ' . number_format($income->receive, 2, ',', '.'),
+                'formattedReceived' => 'R$ ' . number_format($totalTransaction, 2, ',', '.'),
+                'formattedPending' => 'R$ ' . number_format($income->receive - $totalTransaction, 2, ',', '.'),
+                'formattedCpfCnpj' => $this->mascaraDoc($income->customer->cpfcnpj ?? ''),
+                'formattedDate' => date('d/m/Y'),
+                'formattedDueDate' => date('d/m/Y', strtotime($income->due_date)),
+            ]
+        ];
+
+        $pdf = Pdf::loadView('receipts.pdf', $data);
+        $pdf->setPaper('A4', 'portrait');
+        
+        $filename = 'recibo-' . $income->customer->name . '-' . date('Y-m-d') . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
     /**
      * Métodos Privados
      */
@@ -100,5 +140,15 @@ class ReceiptController extends Controller
                 'label' => $customer->cod . ' - ' . $customer->name
             ];
         })->unique('value')->values();
+    }
+
+    private function mascaraDoc($valor)
+    {
+        if (empty($valor)) return '';
+        if (strlen($valor) > 11) {
+            return preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
+        } else {
+            return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
+        }
     }
 }

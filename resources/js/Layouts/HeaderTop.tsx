@@ -1,4 +1,5 @@
 import Dropdown from "@/Components/Dropdown";
+import ThemeToggle from "@/Components/ThemeToggle";
 import React, { useState } from "react";
 import route from "ziggy-js";
 
@@ -20,10 +21,10 @@ const HeaderTop: React.FC<Props> = ({ auth, sidebarOpen, setSidebarOpen }) => {
     };
 
     return (
-        <header className="flex justify-between items-center py-4 px-6 bg-white border-b-4 border-indigo-600">
-            <div className="flex items-center">
+        <header className="flex justify-between items-center py-4 px-6 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center space-x-4">
                 <button
-                    className="text-gray-500 focus:outline-none lg:hidden"
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none lg:hidden transition-colors duration-200"
                     onClick={() => setSidebarOpen(!sidebarOpen)}
                 >
                     <svg
@@ -41,14 +42,24 @@ const HeaderTop: React.FC<Props> = ({ auth, sidebarOpen, setSidebarOpen }) => {
                         />
                     </svg>
                 </button>
+                
+                <div className="hidden lg:block">
+                    <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Sistema de Gestão
+                    </h1>
+                </div>
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
+                {/* Botão de tema */}
+                <ThemeToggle />
+                
+                {/* Notificações */}
                 <div className="relative">
                     <button
                         type="button"
                         onClick={handleShowNotification}
-                        className="flex mx-5 cursor-pointer text-gray-600 focus:outline-none"
+                        className="relative p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none transition-colors duration-200"
                     >
                         <svg
                             className="h-6 w-6"
@@ -64,50 +75,59 @@ const HeaderTop: React.FC<Props> = ({ auth, sidebarOpen, setSidebarOpen }) => {
                                 strokeLinejoin="round"
                             />
                         </svg>
+                        
+                        {/* Indicador de notificação */}
+                        <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white dark:ring-gray-900"></span>
                     </button>
 
                     <div
                         className={`${
                             showNotification ? "absolute" : "hidden"
-                        } right-0 mt-2 w-80 bg-white rounded-lg shadow-xl overflow-hidden z-10`}
+                        } right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50`}
                     >
-                        <a
-                            href="#"
-                            className="flex items-center px-4 py-3 text-gray-600 hover:text-white hover:bg-indigo-600 -mx-2"
-                        >
-                            {/**
-                             * <img
-                                className="h-8 w-8 rounded-full object-cover mx-1"
-                                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80"
-                                alt="avatar"
-                            />
-                             */}
-                            <p className="text-sm mx-2">
-                                <span className="font-bold text-indigo-400">
-                                    Sem notificação
-                                </span>
-                                {/**
-                                 * <span className="font-bold">Sara Salah</span>{" "}
-                                replied on the{" "}
-                                <span className="font-bold text-indigo-400">
-                                    Upload Image
-                                </span>{" "}
-                                artical . 2m
-                                 */}
-                            </p>
-                        </a>
+                        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                                Notificações
+                            </h3>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto">
+                            <a
+                                href="#"
+                                className="flex items-center px-4 py-3 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                            >
+                                <div className="flex-shrink-0">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                </div>
+                                <div className="ml-3">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                        Sistema atualizado
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Nova versão disponível
+                                    </p>
+                                </div>
+                            </a>
+                        </div>
                     </div>
                 </div>
 
+                {/* Menu do usuário */}
                 <div className="relative">
                     <Dropdown>
                         <Dropdown.Trigger>
                             <span className="inline-flex rounded-md">
                                 <button
                                     type="button"
-                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150"
+                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition ease-in-out duration-150"
                                 >
-                                    {auth.user.name}
+                                    <div className="flex items-center space-x-2">
+                                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                            <span className="text-sm font-medium text-white">
+                                                {auth.user.name.charAt(0).toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <span className="hidden sm:block">{auth.user.name}</span>
+                                    </div>
 
                                     <svg
                                         className="ml-2 -mr-0.5 h-4 w-4"
@@ -126,51 +146,24 @@ const HeaderTop: React.FC<Props> = ({ auth, sidebarOpen, setSidebarOpen }) => {
                         </Dropdown.Trigger>
 
                         <Dropdown.Content>
+                            <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {auth.user.name}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {auth.user.email}
+                                </p>
+                            </div>
                             <Dropdown.Link
                                 href={route("logout")}
                                 method="post"
                                 as="button"
                             >
-                                Sair do Sistema
+                                <span className="text-red-600 dark:text-red-400">Sair do Sistema</span>
                             </Dropdown.Link>
                         </Dropdown.Content>
                     </Dropdown>
                 </div>
-                {/**
-                 * <div className="relative">
-                    <button
-                        onClick={handleShowOptions}
-                        className="relative block mx-5 overflow-hidden focus:outline-none"
-                    >
-                        {auth.user.name}
-                    </button>
-
-                    <div
-                        className={`${
-                            showOptions ? "absolute" : "hidden"
-                        } right-0 mt-2 w-48 bg-white rounded-md overflow-hidden shadow-xl z-10`}
-                    >
-                        <a
-                            href="#"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-600 hover:text-white"
-                        >
-                            Profile
-                        </a>
-                        <a
-                            href="#"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-600 hover:text-white"
-                        >
-                            Products
-                        </a>
-                        <a
-                            href="/login"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-600 hover:text-white"
-                        >
-                            Logout
-                        </a>
-                    </div>
-                </div>
-                 */}
             </div>
         </header>
     );

@@ -109,4 +109,4 @@ export default Object.assign(Dropdown, {
     Trigger,
     Content,
     Link
-})
+});

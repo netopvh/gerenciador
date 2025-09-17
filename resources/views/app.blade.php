@@ -15,6 +15,19 @@
 
         <!-- Scripts -->
         @routes
+        <script>
+            // Aplicar tema inicial antes do React carregar
+            (function() {
+                const savedTheme = localStorage.getItem('theme');
+                const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                
+                if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            })();
+        </script>
         <script src="{{ mix('js/app.js') }}" defer></script>
     </head>
     <body class="font-sans antialiased">

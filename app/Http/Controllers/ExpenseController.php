@@ -18,6 +18,7 @@ class ExpenseController extends Controller
 
         $expenses = Expense::with(['supplier','transactions.payment_method','category'])
                             ->month(request('month'))
+                            ->period(request('start_date'), request('end_date'))
                             ->search(request('term'))
                             ->list(request('list'))
                             ->orderBy('due_date', 'asc')
@@ -25,6 +26,7 @@ class ExpenseController extends Controller
 
         $sumTotalPayable = Expense::selectRaw('SUM(payable) as total')
                             ->month(request('month'))
+                            ->period(request('start_date'), request('end_date'))
                             ->search(request('term'))
                             ->list(request('list'))
                             ->get()
@@ -32,6 +34,7 @@ class ExpenseController extends Controller
 
         $sumTotalPaid = Transaction::selectRaw('SUM(received) as total')->whereHas('expense', function ($q) {
             $q->month(request('month'));
+            $q->period(request('start_date'), request('end_date'));
             $q->search(request('term'));
             $q->list(request('list'));
             $q->whereNotNull('expense_id');
@@ -48,10 +51,12 @@ class ExpenseController extends Controller
 
         $months->prepend(['value' => '', 'label' => 'Por Data']);
 
-        $request = request()->all(['month','term','list']);
+        $request = request()->all(['month','term','list','start_date','end_date']);
         $request['month'] = (is_null($request['month']) ? "" : $request['month']);
         $request['term'] = (is_null($request['term']) ? "" : $request['term']);
         $request['list'] = (is_null($request['list']) ? "" : $request['list']);
+        $request['start_date'] = (is_null($request['start_date']) ? "" : $request['start_date']);
+        $request['end_date'] = (is_null($request['end_date']) ? "" : $request['end_date']);
 
         return Inertia::render('Expense/ExpenseIndex', [
             'expenses' => $expenses,
@@ -133,10 +138,12 @@ class ExpenseController extends Controller
                                                         ];
                                         })->unique('value')->values();
 
-        $request = request()->all(['month','term','list']);
+        $request = request()->all(['month','term','list','start_date','end_date']);
         $request['month'] = (is_null($request['month']) ? "" : $request['month']);
         $request['term'] = (is_null($request['term']) ? "" : $request['term']);
         $request['list'] = (is_null($request['list']) ? "" : $request['list']);
+        $request['start_date'] = (is_null($request['start_date']) ? "" : $request['start_date']);
+        $request['end_date'] = (is_null($request['end_date']) ? "" : $request['end_date']);
 
         if($expense->doc != ""){
             $parcels = Expense::where('doc', '=', $expense->doc)->whereNotIn('id',[$expense->id])->get(['id','parcel','due_date','qtd','payable','status']);

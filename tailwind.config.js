@@ -1,11 +1,12 @@
 const defaultTheme = require('tailwindcss/defaultTheme');
 
 module.exports = {
-    purge: [
+    darkMode: 'class', // Habilita dark mode com classe
+    content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
-        './resources/js/**/*.vue',
+        './resources/js/**/*.{js,ts,jsx,tsx}',
     ],
 
     theme: {
