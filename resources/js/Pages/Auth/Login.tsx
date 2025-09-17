@@ -45,109 +45,146 @@ export default function Login({ status, canResetPassword }: Props) {
 
     return (
         <Guest>
+            {/* Header do formulário */}
+            <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    Bem-vindo de volta
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                    Faça login em sua conta para continuar
+                </p>
+            </div>
+
+            {/* Mensagem de status */}
             {status && (
-                <div className="mb-4 font-medium text-sm text-green-600">
-                    {status}
+                <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-center">
+                        <svg className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                            {status}
+                        </span>
+                    </div>
                 </div>
             )}
 
-            <form onSubmit={submit}>
+            {/* Erros de validação */}
+            <ValidationErrors errors={errors} />
+
+            <form onSubmit={submit} className="space-y-6">
+                {/* Campo Email */}
                 <div>
-                    <Label forInput="email" value="Email" className="mb-2" />
+                    <Label 
+                        forInput="email" 
+                        value="Email" 
+                        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" 
+                    />
 
                     <InputIcon
                         name="email"
                         value={data.email}
-                        placeholder="Seu Email"
+                        placeholder="Digite seu email"
                         onChange={onHandleChange}
                         errors={errors.email}
                         icon={
                             <svg
-                                width="15"
-                                height="15"
-                                fill="currentColor"
-                                viewBox="0 0 1792 1792"
+                                className="w-5 h-5 text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
                                 xmlns="http://www.w3.org/2000/svg"
                             >
-                                <path d="M1792 710v794q0 66-47 113t-113 47h-1472q-66 0-113-47t-47-113v-794q44 49 101 87 362 246 497 345 57 42 92.5 65.5t94.5 48 110 24.5h2q51 0 110-24.5t94.5-48 92.5-65.5q170-123 498-345 57-39 100-87zm0-294q0 79-49 151t-122 123q-376 261-468 325-10 7-42.5 30.5t-54 38-52 32.5-57.5 27-50 9h-2q-23 0-50-9t-57.5-27-52-32.5-54-38-42.5-30.5q-91-64-262-182.5t-205-142.5q-62-42-117-115.5t-55-136.5q0-78 41.5-130t118.5-52h1472q65 0 112.5 47t47.5 113z"></path>
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                                />
                             </svg>
                         }
                     />
-
-                    {/**
-                     * <Input
-                        type="text"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        isFocused={true}
-                        errors={errors.email}
-                        handleChange={onHandleChange}
-                    />
-                     */}
                 </div>
 
-                <div className="mt-4">
-                    <Label forInput="password" value="Senha" />
+                {/* Campo Senha */}
+                <div>
+                    <Label 
+                        forInput="password" 
+                        value="Senha" 
+                        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" 
+                    />
 
                     <InputIcon
                         type="password"
                         name="password"
                         value={data.password}
-                        placeholder="Senha"
+                        placeholder="Digite sua senha"
                         onChange={onHandleChange}
                         errors={errors.password}
                         icon={
                             <svg
-                                width="15"
-                                height="15"
-                                fill="currentColor"
-                                viewBox="0 0 1792 1792"
+                                className="w-5 h-5 text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
                                 xmlns="http://www.w3.org/2000/svg"
                             >
-                                <path d="M1376 768q40 0 68 28t28 68v576q0 40-28 68t-68 28h-960q-40 0-68-28t-28-68v-576q0-40 28-68t68-28h32v-320q0-185 131.5-316.5t316.5-131.5 316.5 131.5 131.5 316.5q0 26-19 45t-45 19h-64q-26 0-45-19t-19-45q0-106-75-181t-181-75-181 75-75 181v320h736z"></path>
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                />
                             </svg>
                         }
                     />
-
-                    {/* <Input
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        errors={errors.password}
-                        autoComplete="current-password"
-                        handleChange={onHandleChange}
-                    /> */}
                 </div>
 
-                <div className="block mt-4">
+                {/* Checkbox Lembrar-me e Link Esqueceu a senha */}
+                <div className="flex items-center justify-between">
                     <label className="flex items-center">
                         <Checkbox
                             name="remember"
                             value={data.remember}
                             handleChange={onHandleChange}
                         />
-
-                        <span className="ml-2 text-sm text-gray-600">
+                        <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
                             Lembrar-me
                         </span>
                     </label>
-                </div>
 
-                <div className="flex items-center justify-end mt-4">
                     {canResetPassword && (
                         <InertiaLink
                             href={route("password.request")}
-                            className="underline text-sm text-gray-600 hover:text-gray-900"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-200"
                         >
                             Esqueceu a senha?
                         </InertiaLink>
                     )}
+                </div>
 
-                    <Button className="ml-4" processing={processing}>
-                        Entrar
+                {/* Botão de Login */}
+                <div>
+                    <Button 
+                        className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200" 
+                        processing={processing}
+                    >
+                        {processing ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Entrando...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                </svg>
+                                Entrar
+                            </>
+                        )}
                     </Button>
                 </div>
             </form>
