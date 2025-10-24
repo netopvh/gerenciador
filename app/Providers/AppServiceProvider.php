@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Observers\CustomerObserver;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +27,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+
+        if (config('app.env') === 'production') {
+            URL::forceScheme('https');
+        }
+
         Inertia::share([
             'success' => function () {
                 return session('success');
