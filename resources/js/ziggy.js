@@ -1,5 +1,5 @@
 const Ziggy = {
-    url: "http://gestor.test",
+    url: "https://gerenciador.vitalsolutions.com.br",
     port: null,
     defaults: {},
     routes: {
