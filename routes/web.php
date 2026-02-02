@@ -27,6 +27,15 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+Route::get('/_debug/scheme', function () {
+    return response()->json([
+        'secure' => request()->secure(),
+        'scheme' => request()->getScheme(),
+        'xfp'    => request()->header('x-forwarded-proto'),
+        'host'   => request()->getHost(),
+    ]);
+});
+
 
 Route::middleware(['auth', 'verified'])->group(function(){
 
